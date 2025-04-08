@@ -20,3 +20,33 @@ body {
   font-size: 16px;
   line-height: 1.5;
 }
+
+/* Performance optimizations */
+.will-change-transform {
+  will-change: transform;
+}
+
+.backface-fix {
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  transform: translateZ(0);
+  -webkit-transform: translateZ(0);
+}
+
+/* Add scrolling state class */
+body.is-scrolling * {
+  transition: none !important;
+  animation-play-state: paused !important;
+}
+
+/* Performance optimization for images */
+img {
+  content-visibility: auto;
+}
+
+/* Optimize marquee animations */
+@media (prefers-reduced-motion: reduce) {
+  .animate-marquee, .animate-marquee-vertical {
+    animation-duration: calc(var(--duration) * 2) !important;
+  }
+}
