@@ -2,13 +2,11 @@
 
 import createGlobe, { COBEOptions } from "cobe";
 import { useMotionValue, useSpring } from "motion/react";
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { cn } from "@/lib/utils";
 
 const MOVEMENT_DAMPING = 1400;
-// Add throttle time to limit processing during movement
-const MOVEMENT_THROTTLE = 16; // ~60fps
 
 const GLOBE_CONFIG: COBEOptions = {
   width: 300,
@@ -38,23 +36,6 @@ const GLOBE_CONFIG: COBEOptions = {
   ],
 };
 
-// Add a throttle function for performance
-function throttle<T extends (...args: any[]) => any>(
-  func: T,
-  limit: number
-): (...args: Parameters<T>) => void {
-  let inThrottle = false;
-  return function(this: any, ...args: Parameters<T>) {
-    if (!inThrottle) {
-      func.apply(this, args);
-      inThrottle = true;
-      setTimeout(() => {
-        inThrottle = false;
-      }, limit);
-    }
-  };
-}
-
 export function Globe({
   className,
   config = GLOBE_CONFIG,
@@ -70,8 +51,6 @@ export function Globe({
   const globeRef = useRef<ReturnType<typeof createGlobe> | null>(null);
   const pointerInteracting = useRef<number | null>(null);
   const pointerInteractionMovement = useRef(0);
-  // Add a resize timeout reference to debounce resize events
-  const resizeTimerRef = useRef<number | null>(null);
 
   const r = useMotionValue(0);
   const rs = useSpring(r, {
@@ -80,27 +59,23 @@ export function Globe({
     stiffness: 100,
   });
 
-  const updatePointerInteraction = useCallback((value: number | null) => {
+  const updatePointerInteraction = (value: number | null) => {
     pointerInteracting.current = value;
     if (canvasRef.current) {
       canvasRef.current.style.cursor = value !== null ? "grabbing" : "grab";
     }
-  }, []);
+  };
 
-  // Make updateMovement a memoized function and throttle it
-  const updateMovement = useCallback(
-    throttle((clientX: number) => {
-      if (pointerInteracting.current !== null) {
-        const delta = clientX - pointerInteracting.current;
-        pointerInteractionMovement.current = delta;
-        r.set(r.get() + delta / MOVEMENT_DAMPING);
-      }
-    }, MOVEMENT_THROTTLE),
-    [r]
-  );
+  const updateMovement = (clientX: number) => {
+    if (pointerInteracting.current !== null) {
+      const delta = clientX - pointerInteracting.current;
+      pointerInteractionMovement.current = delta;
+      r.set(r.get() + delta / MOVEMENT_DAMPING);
+    }
+  };
 
   // Initialize globe with proper dimensions
-  const initGlobe = useCallback(() => {
+  const initGlobe = () => {
     if (!canvasRef.current || !containerRef.current || globeRef.current) return;
     
     const containerWidth = containerRef.current.offsetWidth;
@@ -129,7 +104,7 @@ export function Globe({
         setIsLoaded(true);
       }
     }, 100);
-  }, [config, rs]);
+  };
 
   useEffect(() => {
     // Use a small delay to ensure container is properly sized
@@ -141,28 +116,16 @@ export function Globe({
       
       // Only reinitialize if size changed significantly
       const newWidth = entries[0].contentRect.width;
-      
-      if (Math.abs(newWidth - widthRef.current) > 20) {
-        // Clear any pending resize timer
-        if (resizeTimerRef.current !== null) {
-          clearTimeout(resizeTimerRef.current);
-        }
+      if (Math.abs(newWidth - widthRef.current) > 20 && globeRef.current) {
+        // Clean up old globe
+        globeRef.current.destroy();
+        globeRef.current = null;
         
-        // Set a debounce timer to avoid rapid re-initializations
-        resizeTimerRef.current = window.setTimeout(() => {
-          if (globeRef.current) {
-            // Clean up old globe
-            globeRef.current.destroy();
-            globeRef.current = null;
-            
-            // Hide canvas during transition
-            if (canvasRef.current) canvasRef.current.style.opacity = "0";
-          }
-          
-          // Re-initialize with new dimensions
-          setTimeout(initGlobe, 100);
-          resizeTimerRef.current = null;
-        }, 200); // 200ms debounce for resize
+        // Hide canvas during transition
+        if (canvasRef.current) canvasRef.current.style.opacity = "0";
+        
+        // Re-initialize with new dimensions
+        setTimeout(initGlobe, 100);
       }
     });
     
@@ -172,15 +135,12 @@ export function Globe({
 
     return () => {
       clearTimeout(initTimer);
-      if (resizeTimerRef.current !== null) {
-        clearTimeout(resizeTimerRef.current);
-      }
       resizeObserver.disconnect();
       if (globeRef.current) {
         globeRef.current.destroy();
       }
     };
-  }, [initGlobe]);
+  }, [rs, config]);
 
   return (
     <div
@@ -190,27 +150,11 @@ export function Globe({
         isLoaded ? "opacity-100" : "opacity-0",
         className
       )}
-      // Add Safari-specific optimizations
-      style={{
-        transform: "translate3d(0, 0, 0)",
-        WebkitTransform: "translate3d(0, 0, 0)",
-        backfaceVisibility: "hidden",
-        WebkitBackfaceVisibility: "hidden",
-        willChange: "transform",
-      }}
     >
       <canvas
         className={cn(
           "size-full opacity-0 transition-opacity duration-500 [contain:layout_paint_size]"
         )}
-        // Add Safari-specific optimizations to canvas
-        style={{
-          transform: "translate3d(0, 0, 0)",
-          WebkitTransform: "translate3d(0, 0, 0)",
-          backfaceVisibility: "hidden",
-          WebkitBackfaceVisibility: "hidden",
-          willChange: "transform"
-        }}
         ref={canvasRef}
         onPointerDown={(e) => {
           pointerInteracting.current = e.clientX;
