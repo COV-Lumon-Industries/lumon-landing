@@ -1,7 +1,6 @@
 import { Button } from "@/components/ui/button";
-import { NavMenu } from "./nav-menu";
-import { NavigationSheet } from "./navigation-sheet";
 import Lumon from "../../../public/lumon.png";
+import { NavigationSheet } from "./navigation-sheet";
 
 export default function Navbar () {
   return (
@@ -10,17 +9,16 @@ export default function Navbar () {
         <div className="h-full flex items-center justify-between mx-auto px-4">
           <img src={Lumon} alt="Logo" className="h-10 w-10 border rounded-full" />
 
-          {/* Desktop Menu */}
-          <NavMenu className="hidden md:block" />
 
           <div className="flex items-center gap-3">
             <Button
               variant="outline"
               className="hidden sm:inline-flex text-black rounded-full"
+              onClick={() => window.open("https://lumon.app", "_blank")}
             >
-              Sign In
+              Get Started
             </Button>
-            <Button className="rounded-full">Get Started</Button>
+          
 
             {/* Mobile Menu */}
             <div className="md:hidden">
